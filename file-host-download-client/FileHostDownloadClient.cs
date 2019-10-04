@@ -30,7 +30,7 @@ namespace Gsemac {
             if (downloadClient is null)
                 base.DownloadFileAsync(address, filename, userToken);
             else
-                downloadClient.DownloadFileAsync(address, filename);
+                downloadClient.DownloadFileAsync(address, filename, userToken);
 
         }
 

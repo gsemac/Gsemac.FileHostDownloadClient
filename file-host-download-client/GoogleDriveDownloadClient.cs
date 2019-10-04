@@ -70,15 +70,6 @@ namespace Gsemac {
 
         }
 
-        // Protected members
-
-        protected override string GetFilenameFromUri(Uri address) {
-
-            // The filename can't be determined until we access the URI, so it will be retrieved later.
-            return string.Empty;
-
-        }
-
         // Private members
 
         private bool _addressIsSupported(Uri address) {

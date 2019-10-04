@@ -83,7 +83,7 @@ namespace Gsemac {
             return client;
 
         }
-        protected virtual string GetFilenameFromUri(Uri address) {
+        protected string GetFilenameFromUri(Uri address) {
 
             string filename = System.IO.Path.GetFileName(address.LocalPath);
 
