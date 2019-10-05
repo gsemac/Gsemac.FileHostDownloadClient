@@ -4,20 +4,24 @@
 ## Usage
 Usage is very similar to that of `WebClient`:
 ```c#
-IFileHostDownloadClient client = new FileHostDownloadClient();
+using(IFileHostDownloadClient client = new FileHostDownloadClient()) {
 
-client.DownloadProgressChanged += (sender, e) => {
-  Console.WriteLine("Download progress: " + e.ProgressPercentage);
-};
+	client.DownloadProgressChanged += (sender, e) => {
+		Console.WriteLine("Download progress: " + e.ProgressPercentage);
+	};
 
-client.DownloadFileCompleted += (sender, e) => {
-  Console.WriteLine("Download complete!");
-};
+	client.DownloadFileCompleted += (sender, e) => {
+		Console.WriteLine("Download complete!");
+	};
 
-Uri address = new Uri("https://drive.google.com/open?id=0BwmD_VLjROrfTHk4NFg2SndKcjQ");
-string filename = client.GetFilename(address);
+	Uri address = new Uri("https://drive.google.com/open?id=0BwmD_VLjROrfTHk4NFg2SndKcjQ");
+	string filename = client.GetFilename(address);
 
-client.DownloadFileAsync(address, filename);
+	client.DownloadFileAsync(address, filename);
+
+	// ...
+
+}
 ```
 `FileHostDownloadClient` acts a generic client that spawns specialized clients when required/available. 
 
