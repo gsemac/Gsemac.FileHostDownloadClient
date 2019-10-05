@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
@@ -12,78 +13,106 @@ namespace Gsemac {
 
         // Public members
 
-        public virtual string Accept { get; set; } = "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8";
-        public virtual DecompressionMethods AcceptEncoding { get; set; } = DecompressionMethods.Deflate | DecompressionMethods.GZip;
-        public virtual string AcceptLanguage { get; set; } = "en-US,en;q=0.5";
-        public virtual string UserAgent { get; set; } = "Mozilla/5.0 (Windows NT 6.1; WOW64; rv:64.0) Gecko/20100101 Firefox/64.0";
-        public virtual CookieContainer Cookies { get; set; } = new CookieContainer();
-
-        public event AsyncCompletedEventHandler DownloadFileCompleted;
-        public event DownloadProgressChangedEventHandler DownloadProgressChanged;
+        public event AsyncCompletedEventHandler DownloadFileCompleted {
+            add {
+                Client.DownloadFileCompleted += value;
+            }
+            remove {
+                Client.DownloadFileCompleted -= value;
+            }
+        }
+        public event DownloadProgressChangedEventHandler DownloadProgressChanged {
+            add {
+                Client.DownloadProgressChanged += value;
+            }
+            remove {
+                Client.DownloadProgressChanged -= value;
+            }
+        }
+        public event DownloadStringCompletedEventHandler DownloadStringCompleted {
+            add {
+                Client.DownloadStringCompleted += value;
+            }
+            remove {
+                Client.DownloadStringCompleted -= value;
+            }
+        }
+        public event OpenReadCompletedEventHandler OpenReadCompleted {
+            add {
+                Client.OpenReadCompleted += value;
+            }
+            remove {
+                Client.OpenReadCompleted -= value;
+            }
+        }
 
         public virtual void DownloadFile(Uri address, string filename) {
 
-            using (WebClient client = CreateWebClient())
-                client.DownloadFile(address, filename);
+            Uri directUri = GetDirectUri(address);
 
-        }
-        public void DownloadFile(string address, string filename) {
-            DownloadFile(new Uri(address), filename);
-        }
+            PrepareClientForDownload(address);
 
-        public void DownloadFileAsync(Uri address, string filename) {
-            DownloadFileAsync(address, filename, null);
+            Client.DownloadFile(directUri, filename);
+
         }
         public virtual void DownloadFileAsync(Uri address, string filename, object userToken) {
 
-            using (WebClient client = CreateWebClient()) {
+            Uri directUri = GetDirectUri(address);
 
-                if (userToken is null)
-                    client.DownloadFileAsync(address, filename);
-                else
-                    client.DownloadFileAsync(address, filename, userToken);
+            PrepareClientForDownload(address);
 
-            }
+            if (userToken is null)
+                Client.DownloadFileAsync(directUri, filename);
+            else
+                Client.DownloadFileAsync(directUri, filename, userToken);
 
         }
+        public virtual string DownloadString(Uri address) {
 
+            Uri directUri = GetDirectUri(address);
+
+            PrepareClientForDownload(address);
+
+            return Client.DownloadString(directUri);
+
+        }
+        public virtual void DownloadStringAsync(Uri address, object userToken) {
+
+            Uri directUri = GetDirectUri(address);
+
+            PrepareClientForDownload(address);
+
+            if (userToken is null)
+                Client.DownloadStringAsync(directUri);
+            else
+                Client.DownloadStringAsync(directUri, userToken);
+
+        }
+        public virtual Stream OpenRead(Uri address) {
+
+            Uri directUri = GetDirectUri(address);
+
+            PrepareClientForDownload(address);
+
+            return Client.OpenRead(directUri);
+
+        }
+        public virtual void OpenReadAsync(Uri address, object userToken) {
+
+            Uri directUri = GetDirectUri(address);
+
+            PrepareClientForDownload(address);
+
+            if (userToken is null)
+                Client.OpenReadAsync(directUri);
+            else
+                Client.OpenReadAsync(directUri, userToken);
+
+        }
         public virtual Uri GetDirectUri(Uri address) {
             return address;
         }
-        public string GetDirectUri(string address) {
-            return GetDirectUri(new Uri(address)).AbsoluteUri;
-        }
-
         public virtual string GetFilename(Uri address) {
-            return GetFilenameFromUri(address);
-        }
-        public string GetFilename(string address) {
-            return GetFilename(new Uri(address));
-        }
-
-        // Protected members
-
-        protected WebClient CreateWebClient() {
-
-            WebClientEx client = new WebClientEx {
-                Cookies = Cookies,
-                AutomaticDecompression = AcceptEncoding
-            };
-
-            client.Headers[HttpRequestHeader.Accept] = Accept;
-            client.Headers[HttpRequestHeader.AcceptLanguage] = AcceptLanguage;
-            client.Headers[HttpRequestHeader.UserAgent] = UserAgent;
-
-            if (DownloadFileCompleted != null)
-                client.DownloadFileCompleted += DownloadFileCompleted;
-
-            if (DownloadProgressChanged != null)
-                client.DownloadProgressChanged += DownloadProgressChanged;
-
-            return client;
-
-        }
-        protected string GetFilenameFromUri(Uri address) {
 
             string filename = System.IO.Path.GetFileName(address.LocalPath);
 
@@ -93,6 +122,65 @@ namespace Gsemac {
             return filename;
 
         }
+
+        public void DownloadFile(string address, string filename) {
+            DownloadFile(new Uri(address), filename);
+        }
+        public void DownloadFileAsync(Uri address, string filename) {
+            DownloadFileAsync(address, filename, null);
+        }
+        public string DownloadString(string address) {
+            return DownloadString(new Uri(address));
+        }
+        public void DownloadStringAsync(Uri address) {
+            DownloadStringAsync(address, null);
+        }
+        public virtual void OpenReadAsync(Uri address) {
+            OpenReadAsync(address, null);
+        }
+        public string GetDirectUri(string address) {
+            return GetDirectUri(new Uri(address)).AbsoluteUri;
+        }
+        public string GetFilename(string address) {
+            return GetFilename(new Uri(address));
+        }
+
+        public void Dispose() {
+            Dispose(true);
+        }
+
+        // Protected members
+
+        protected WebClientEx Client { get; private set; } = new WebClientEx();
+
+        protected virtual void PrepareClientForDownload(Uri address) { }
+        protected virtual void Dispose(bool disposing) {
+
+            if (!_disposed) {
+
+                if (disposing) {
+
+                    if (_dispose_client)
+                        Client.Dispose();
+
+                }
+
+                _disposed = true;
+            }
+
+        }
+
+        protected static void SetWebClient(FileHostDownloadClientBase downloadClient, WebClientEx webClient, bool diposeWebClient) {
+
+            downloadClient.Client = webClient;
+            downloadClient._dispose_client = diposeWebClient;
+
+        }
+
+        // Private members
+
+        private bool _dispose_client = true;
+        private bool _disposed = false;
 
     }
 

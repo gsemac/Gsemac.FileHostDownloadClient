@@ -34,4 +34,4 @@ It is able to follow through Dropbox's "speedbump" page (a verification page tha
 `GoogleDriveDownloadClient` specializes in downloading files from Google Drive, and accepts both share links and direct download links.
 It is able to follow through Google Drive's "can't scan this file for viruses" automatically for files that are large enough to trigger it.
 
-Additional implementations can be created by inheriting from `IFileHostDownloadClient` or `FileHostDownloadClientBase` and then registered for use on specific domains via `FileHostDownloadClient.RegisterClient`.
+Additional implementations can be created by inheriting from `FileHostDownloadClientBase` and then registered for use on specific domains via `FileHostDownloadClient.RegisterClient`.

@@ -14,70 +14,42 @@ namespace Gsemac {
 
         // Public members
 
-        public override void DownloadFile(Uri address, string filename) {
-
-            using (WebClientEx client = CreateWebClient() as WebClientEx) {
-
-                Uri directUri = _getDirectDownloadUri(client, address);
-
-                _prepareClientForDownload(client, address);
-
-                client.DownloadFile(directUri, filename);
-
-            }
-
-        }
-        public override void DownloadFileAsync(Uri address, string filename, object userToken) {
-
-            using (WebClientEx client = CreateWebClient() as WebClientEx) {
-
-                Uri directUri = _getDirectDownloadUri(client, address);
-
-                _prepareClientForDownload(client, address);
-
-                client.DownloadFileAsync(directUri, filename);
-
-            }
-
-        }
-
         public override Uri GetDirectUri(Uri address) {
-
-            using (WebClientEx client = CreateWebClient() as WebClientEx)
-                return _getDirectDownloadUri(client, address);
-
+            return _getDirectDownloadUri(address);
         }
-
         public override string GetFilename(Uri address) {
 
-            using (WebClientEx client = CreateWebClient() as WebClientEx) {
+            Uri directUri = _getDirectDownloadUri(address);
 
-                Uri directUri = _getDirectDownloadUri(client, address);
+            PrepareClientForDownload(address);
 
-                _prepareClientForDownload(client, address);
+            using (Stream stream = Client.OpenRead(directUri)) {
 
-                using (Stream stream = client.OpenRead(directUri)) {
+                string filename = _getFileNameFromResponseHeaders(directUri);
 
-                    string filename = _getFileNameFromResponseHeaders(client, directUri);
+                stream.Close();
 
-                    stream.Close();
-
-                    return filename;
-
-                }
+                return filename;
 
             }
 
+        }
+
+        // Protected members
+
+        protected override void PrepareClientForDownload(Uri address) {
+            Client.Referer = address.AbsoluteUri;
         }
 
         // Private members
 
-        private bool _addressIsSupported(Uri address) {
-            return Regex.Match(address.AbsoluteUri, @"^https?:\/\/(?:www\.)?drive\.google\.com").Success;
-        }
         private string _getFileIdFromUri(Uri address) {
 
-            Match fileIdMatch = Regex.Match(address.Query, @"\bid=(.+?)(?:&|$)");
+            // Match IDs from URIs of the following forms:
+            // drive.google.com/open?id=XXXXX
+            // drive.google.com/file/d/XXXXX/view?usp=sharing
+
+            Match fileIdMatch = Regex.Match(address.AbsoluteUri, @"\b(?:id=|\/d\/)(.+?)(?=&|\/|$)");
 
             if (!fileIdMatch.Success || string.IsNullOrEmpty(fileIdMatch.Groups[1].Value))
                 throw new ArgumentException("Could not extract file ID from URI.");
@@ -85,9 +57,9 @@ namespace Gsemac {
             return fileIdMatch.Groups[1].Value;
 
         }
-        private Uri _getDirectDownloadUri(WebClientEx client, Uri address, string confirmationCode = "") {
+        private Uri _getDirectDownloadUri(Uri address, string confirmationCode = "") {
 
-            if (!_addressIsSupported(address))
+            if (address.Host.ToLower() != "drive.google.com")
                 throw new ArgumentException("This download client does not handle URIs of this type.");
 
             // Start by converting the URL to a download URL, which, under normal circumstances, can be downloaded directly.
@@ -102,16 +74,16 @@ namespace Gsemac {
 
             // Issue a request to get the download URL we get redirected to.
 
-            client.Headers.Add(HttpRequestHeader.Referer, address.AbsoluteUri);
-            client.AllowAutoRedirect = false;
+            Client.Headers.Add(HttpRequestHeader.Referer, address.AbsoluteUri);
+            Client.AllowAutoRedirect = false;
 
-            string responseBody = client.Get(downloadUrl);
+            string responseBody = Client.Get(downloadUrl);
 
-            client.AllowAutoRedirect = true;
+            Client.AllowAutoRedirect = true;
 
-            if (client.StatusCode == HttpStatusCode.Redirect) {
+            if (Client.StatusCode == HttpStatusCode.Redirect) {
 
-                directDownloadUrl = client.ResponseHeaders[HttpResponseHeader.Location];
+                directDownloadUrl = Client.ResponseHeaders[HttpResponseHeader.Location];
 
             }
             else if (string.IsNullOrEmpty(confirmationCode)) {
@@ -127,7 +99,7 @@ namespace Gsemac {
 
                     confirmationCode = confirmationCodeMatch.Groups[1].Value;
 
-                    return _getDirectDownloadUri(client, new Uri(downloadUrl), confirmationCode);
+                    return _getDirectDownloadUri(new Uri(downloadUrl), confirmationCode);
 
                 }
 
@@ -141,18 +113,13 @@ namespace Gsemac {
             return new Uri(directDownloadUrl);
 
         }
-        private string _getFileNameFromResponseHeaders(WebClientEx client, Uri address) {
+        private string _getFileNameFromResponseHeaders(Uri address) {
 
-            string contentDispositionHeader = client.ResponseHeaders.Get("content-disposition") ?? "";
+            string contentDispositionHeader = Client.ResponseHeaders.Get("content-disposition") ?? "";
             Match filenameMatch = Regex.Match(contentDispositionHeader, @"\bfilename=""([^ ""]+?)""");
-            string filename = filenameMatch.Success ? Uri.UnescapeDataString(filenameMatch.Groups[1].Value) : base.GetFilenameFromUri(address);
+            string filename = filenameMatch.Success ? Uri.UnescapeDataString(filenameMatch.Groups[1].Value) : base.GetFilename(address);
 
             return filename;
-
-        }
-        private void _prepareClientForDownload(WebClientEx client, Uri address) {
-
-            client.Headers.Set(HttpRequestHeader.Referer, address.AbsoluteUri);
 
         }
 
